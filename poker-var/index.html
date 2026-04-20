@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2C2C2A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Poker VAR" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Poker VAR</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #1a1a18;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 430px;
+      height: 100dvh;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      border-bottom: 0.5px solid #e5e5e3;
+      flex-shrink: 0;
+      background: #fff;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+
+    .top-title { font-size: 16px; font-weight: 600; color: #2C2C2A; }
+
+    .phase-dots { display: flex; gap: 6px; align-items: center; }
+    .phase-dot { width: 8px; height: 8px; border-radius: 50%; background: #D3D1C7; transition: all 0.2s; }
+    .phase-dot.active { background: #2C2C2A; width: 22px; border-radius: 4px; }
+    .phase-dot.done { background: #639922; }
+
+    .panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-scroll { flex: 1; overflow-y: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+
+    .bottom-bar {
+      flex-shrink: 0;
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      background: #fff;
+      border-top: 0.5px solid #e5e5e3;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-main { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 500; cursor: pointer; }
+    .btn-main:active { opacity: 0.75; transform: scale(0.98); }
+    .btn-dark { background: #2C2C2A; color: #F1EFE8; }
+    .btn-light {
+      background: #f5f5f3;
+      color: #2C2C2A;
+      border: 0.5px solid #D3D1C7;
+      flex: 0 0 auto;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .section-label { font-size: 11px; font-weight: 600; color: #888780; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+    .hint-bar { background: #f5f5f3; margin: 0 16px 10px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #888780; text-align: center; }
+    .divider { height: 0.5px; background: #e5e5e3; margin: 10px 16px; }
+
+    /* Community */
+    .community-slots { display: flex; gap: 6px; justify-content: center; margin-bottom: 4px; }
+    .card-slot { border-radius: 8px; border: 1.5px dashed #D3D1C7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-wrapper { position: relative; display: inline-flex; }
+    .rm-btn {
+      position: absolute; top: -7px; right: -7px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #D85A30; color: white; border: none;
+      cursor: pointer; font-size: 12px;
+      display: flex; align-items: center; justify-content: center; z-index: 2;
+    }
+
+    .face-card {
+      background: white;
+      border: 1.5px solid #D3D1C7;
+      border-radius: 8px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-weight: 700; line-height: 1.1; flex-shrink: 0;
+      user-select: none;
+    }
+    .face-card .cr { color: #2C2C2A; }
+    .face-card .cs { color: #2C2C2A; }
+    .face-card.red-suit .cr { color: #D85A30; }
+    .face-card.red-suit .cs { color: #D85A30; }
+
+    .com-card { width: 56px; height: 78px; }
+    .com-card .cr { font-size: 17px; }
+    .com-card .cs { font-size: 14px; }
+    .com-card.selected { border-color: #888780; }
+
+    /* Deck */
+    .deck-section { padding: 0 12px; }
+    .suit-label { font-size: 11px; font-weight: 600; color: #888780; padding: 0 0 3px 2px; }
+    .deck-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-bottom: 6px; }
+    .deck-card {
+      aspect-ratio: 5/7;
+      border-radius: 7px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+      border: 1.5px solid #D3D1C7;
+      background: white;
+    }
+    .deck-card:active { transform: scale(0.88); }
+    .deck-card.used { opacity: 0.18; pointer-events: none; }
+    .deck-card .dr { font-size: 13px; font-weight: 700; line-height: 1.2; color: #2C2C2A; }
+    .deck-card .ds { font-size: 11px; line-height: 1; color: #2C2C2A; }
+    .deck-card.red-suit .dr { color: #D85A30; }
+    .deck-card.red-suit .ds { color: #D85A30; }
+
+    /* Player cards */
+    .p-card { width: 52px; height: 72px; border-radius: 8px; border-width: 2px !important; }
+    .p-card .cr { font-size: 16px; }
+    .p-card .cs { font-size: 13px; }
+    .p-card-slot {
+      width: 52px; height: 72px; border-radius: 8px;
+      border: 2px dashed; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; opacity: 0.35;
+      font-size: 20px; color: #888780;
+    }
+
+    .player-block {
+      background: #fff;
+      border: 0.5px solid #e5e5e3;
+      border-radius: 12px;
+      margin: 0 16px 10px;
+      overflow: hidden;
+    }
+    .player-block.selecting { border-width: 2px; }
+    .player-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px; cursor: pointer; }
+    .player-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; flex-shrink: 0;
+    }
+    .player-name-input {
+      border: none; background: transparent;
+      font-size: 14px; font-weight: 500; color: #2C2C2A;
+      outline: none; flex: 1; min-width: 0;
+      font-family: inherit;
+    }
+    .player-badge-sm { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; flex-shrink: 0; }
+    .player-rm { border: none; background: transparent; color: #888780; font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+    .player-cards-area { display: flex; gap: 8px; padding: 0 12px 12px; align-items: center; }
+
+    .add-player-btn {
+      margin: 0 16px;
+      border: 1px dashed #D3D1C7;
+      background: transparent;
+      color: #888780;
+      font-size: 13px;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      width: calc(100% - 32px);
+      display: block;
+      font-family: inherit;
+    }
+
+    /* Result */
+    .result-block { margin: 0 16px 10px; border-radius: 12px; padding: 14px; border: 0.5px solid #e5e5e3; }
+    .result-block.winner { background: #EAF3DE; border-color: #639922; }
+    .result-block.tie-block { background: #E6F1FB; border-color: #378ADD; }
+    .result-block.loser { background: #f5f5f3; }
+    .result-tag { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 99px; display: inline-block; margin-bottom: 6px; }
+    .tag-win { background: #639922; color: white; }
+    .tag-tie { background: #378ADD; color: white; }
+    .result-pname { font-size: 15px; font-weight: 500; color: #2C2C2A; }
+    .result-hand-name { font-size: 13px; color: #888780; margin-bottom: 8px; }
+    .mini-cards { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .mini-card { font-size: 12px; font-weight: 700; border-radius: 5px; padding: 4px 7px; background: white; border: 1.5px solid #D3D1C7; color: #2C2C2A; }
+    .mini-card.red-suit { color: #D85A30; }
+    .mini-card.comm { opacity: 0.55; border-style: dashed; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="top-bar">
+    <div class="top-title">Poker VAR</div>
+    <div class="phase-dots">
+      <div class="phase-dot active" id="dot-0"></div>
+      <div class="phase-dot" id="dot-1"></div>
+      <div class="phase-dot" id="dot-2"></div>
+    </div>
+  </div>
+
+  <!-- MESA -->
+  <div class="panel" id="panel-community">
+    <div class="panel-scroll">
+      <div style="padding:14px 16px 8px;">
+        <div class="section-label">Cartas da mesa</div>
+        <div class="community-slots" id="community-slots"></div>
+        <div style="text-align:center;margin-top:6px;">
+          <span style="font-size:12px;color:#888780;" id="comm-count">Selecione 5 cartas</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="hint-bar">Toque nas cartas para selecionar</div>
+      <div class="deck-section" id="deck-container"></div>
+    </div>
+    <div class="bottom-bar">
+      <button class="btn-main btn-dark" id="btn-next-players" disabled>Definir jogadores</button>
+      <button class="btn-light" id="btn-clear-comm">Limpar</button>
+    </div>
+  </div>
+
+  <!-- JOGADORES -->
+  <div class="panel" id="panel-players" style="display:none;">
+    <div class="panel-scroll">
+      <div class="hint-bar" style="margin-top:12px;" id="hint-players">Toque em um jogador para selecioná-lo</div>
+      <div id="players-list"></div>
+      <button class="add-player-btn" id="btn-add-player">+ Adicionar jogador</button>
+      <div class="divider"></div>
+      <div class="deck-section" id="deck2-container"></div>
+    </div>
+    <div class="bottom-bar">
+      <button class="btn-main btn-dark" id="btn-calc">Ver vencedor</button>
+      <button class="btn-light" id="btn-back1">←</button>
+    </div>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="panel" id="panel-result" style="display:none;">
+    <div class="panel-scroll">
+      <div style="padding:14px 16px 10px;"><div class="section-label">Resultado da rodada</div></div>
+      <div id="result-list"></div>
+    </div>
+    <div class="bottom-bar">
+      <button class="btn-main btn-dark" id="btn-new-round">Nova rodada</button>
+      <button class="btn-light" id="btn-back2">←</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUITS4 = ['♠','♣','♥','♦'];
+const RANKS13 = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+const RANK_VAL = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14};
+const PCOLS = ['#185FA5','#639922','#993C1D','#534AB7','#0F6E56','#854F0B','#72243E'];
+const PBGS  = ['#E6F1FB','#EAF3DE','#FAECE7','#EEEDFE','#E1F5EE','#FAEEDA','#FBEAF0'];
+
+let community=[], players=[], selPlayer=-1, usedCards=new Set();
+const isRed = s => s==='♥'||s==='♦';
+const rCls = s => isRed(s)?'red-suit':'';
+
+function setPhase(n){
+  for(let i=0;i<3;i++){
+    const d=document.getElementById('dot-'+i);
+    d.className='phase-dot'+(i===n?' active':i<n?' done':'');
+  }
+}
+
+function buildDeck(cid, fn){
+  let html='';
+  for(const s of SUITS4){
+    html+=`<div class="suit-label">${s}</div><div class="deck-grid">`;
+    for(const r of RANKS13){
+      const id=r+s, used=usedCards.has(id);
+      html+=`<div class="deck-card ${rCls(s)}${used?' used':''}" data-id="${id}" onclick="${fn}('${r}','${s}')">
+        <span class="dr">${r}</span><span class="ds">${s}</span>
+      </div>`;
+    }
+    html+=`</div>`;
+  }
+  document.getElementById(cid).innerHTML=html;
+}
+
+function refreshUsed(cid){
+  document.querySelectorAll('#'+cid+' .deck-card').forEach(el=>{
+    el.classList.toggle('used', usedCards.has(el.dataset.id));
+  });
+}
+
+function renderCommunity(){
+  let html='';
+  for(let i=0;i<5;i++){
+    if(community[i]){
+      const c=community[i];
+      html+=`<div class="card-wrapper">
+        <div class="face-card com-card selected ${rCls(c.s)}">
+          <span class="cr">${c.r}</span><span class="cs">${c.s}</span>
+        </div>
+        <button class="rm-btn" onclick="removeCom('${c.id}')">×</button>
+      </div>`;
+    } else {
+      html+=`<div class="card-slot" style="width:56px;height:78px;"></div>`;
+    }
+  }
+  document.getElementById('community-slots').innerHTML=html;
+  const n=community.length;
+  document.getElementById('comm-count').textContent=n===5?'Mesa completa':`${n} de 5 selecionadas`;
+  document.getElementById('btn-next-players').disabled=n!==5;
+}
+
+function tapCommunity(r,s){
+  const id=r+s;
+  if(usedCards.has(id)||community.length>=5) return;
+  community.push({r,s,id}); usedCards.add(id);
+  renderCommunity(); refreshUsed('deck-container');
+}
+
+function removeCom(id){
+  community=community.filter(c=>c.id!==id); usedCards.delete(id);
+  renderCommunity(); refreshUsed('deck-container');
+}
+
+function renderPlayers(){
+  document.getElementById('players-list').innerHTML=players.map((p,i)=>{
+    const col=PCOLS[i%PCOLS.length], bg=PBGS[i%PBGS.length];
+    const isSel=selPlayer===i;
+    let ch='';
+    for(let j=0;j<2;j++){
+      if(p.cards[j]){
+        const c=p.cards[j];
+        ch+=`<div class="card-wrapper">
+          <div class="face-card p-card ${rCls(c.s)}" style="border-color:${col};">
+            <span class="cr">${c.r}</span><span class="cs">${c.s}</span>
+          </div>
+          <button class="rm-btn" onclick="event.stopPropagation();removePlayerCard(${i},'${c.id}')">×</button>
+        </div>`;
+      } else {
+        ch+=`<div class="p-card-slot" style="border-color:${col};">?</div>`;
+      }
+    }
+    return`<div class="player-block${isSel?' selecting':''}" style="${isSel?`border:2px solid ${col};`:''}">
+      <div class="player-top" onclick="selectPlayer(${i})">
+        <div class="player-avatar" style="background:${bg};color:${col};">${i+1}</div>
+        <input class="player-name-input" value="${p.name}" oninput="players[${i}].name=this.value" onclick="event.stopPropagation()" placeholder="Jogador ${i+1}"/>
+        <span class="player-badge-sm" style="background:${bg};color:${col};">${isSel?'selecionando':p.cards.length+'/2'}</span>
+        <button class="player-rm" onclick="event.stopPropagation();removePlayer(${i})">×</button>
+      </div>
+      <div class="player-cards-area">${ch}</div>
+    </div>`;
+  }).join('');
+  updateHint();
+}
+
+function selectPlayer(i){ selPlayer=i; renderPlayers(); }
+
+function updateHint(){
+  const el=document.getElementById('hint-players');
+  if(!el) return;
+  if(selPlayer<0||selPlayer>=players.length){el.textContent='Toque em um jogador para selecioná-lo';return;}
+  const p=players[selPlayer], rem=2-p.cards.length;
+  el.textContent=rem>0?`Escolha ${rem} carta${rem>1?'s':''} para ${p.name||'Jogador '+(selPlayer+1)}`:`${p.name||'Jogador'} completo — selecione outro`;
+}
+
+function tapPlayer(r,s){
+  const id=r+s;
+  if(usedCards.has(id)) return;
+  if(selPlayer<0){document.getElementById('hint-players').textContent='Toque em um jogador primeiro';return;}
+  const p=players[selPlayer];
+  if(p.cards.length>=2){document.getElementById('hint-players').textContent='Este jogador já tem 2 cartas';return;}
+  p.cards.push({r,s,id}); usedCards.add(id);
+  if(p.cards.length===2){
+    const next=players.findIndex((pl,idx)=>idx>selPlayer&&pl.cards.length<2);
+    if(next>=0) selPlayer=next;
+  }
+  renderPlayers(); refreshUsed('deck2-container');
+}
+
+function removePlayerCard(pi,id){
+  players[pi].cards=players[pi].cards.filter(c=>c.id!==id); usedCards.delete(id);
+  renderPlayers(); refreshUsed('deck2-container');
+}
+
+function removePlayer(i){
+  players[i].cards.forEach(c=>usedCards.delete(c.id)); players.splice(i,1);
+  if(selPlayer>=players.length) selPlayer=players.length-1;
+  renderPlayers(); refreshUsed('deck2-container');
+}
+
+function handRank(cards7){
+  const suits=cards7.map(c=>c.s), vals=cards7.map(c=>RANK_VAL[c.r]).sort((a,b)=>b-a);
+  const sc={};suits.forEach(s=>sc[s]=(sc[s]||0)+1);
+  const fs=Object.keys(sc).find(s=>sc[s]>=5);
+  const vc={};vals.forEach(v=>vc[v]=(vc[v]||0)+1);
+  const grps=Object.entries(vc).sort((a,b)=>b[1]-a[1]||b[0]-a[0]);
+  function getStraight(vs){
+    const u=[...new Set(vs)].sort((a,b)=>b-a);
+    if(u[0]===14) u.push(1);
+    for(let i=0;i<=u.length-5;i++){
+      let run=[u[i]];
+      for(let j=i+1;j<u.length&&run.length<5;j++) if(u[j]===run[run.length-1]-1) run.push(u[j]);
+      if(run.length>=5) return run.slice(0,5);
+    }
+    return null;
+  }
+  let sf=null,rf=false;
+  if(fs){const fv=cards7.filter(c=>c.s===fs).map(c=>RANK_VAL[c.r]).sort((a,b)=>b-a);sf=getStraight(fv);if(sf&&sf[0]===14)rf=true;}
+  const st=getStraight(vals);
+  if(rf) return{rank:9,name:'Royal Flush',tb:[14,13,12,11,10]};
+  if(sf) return{rank:8,name:'Straight Flush',tb:sf};
+  if(grps[0][1]===4){const q=+grps[0][0],k=vals.find(v=>v!==q);return{rank:7,name:'Quadra',tb:[q,q,q,q,k]};}
+  if(grps[0][1]===3&&grps[1]&&grps[1][1]>=2){const t=+grps[0][0],p2=+grps[1][0];return{rank:6,name:'Full House',tb:[t,t,t,p2,p2]};}
+  if(fs){const fv=cards7.filter(c=>c.s===fs).map(c=>RANK_VAL[c.r]).sort((a,b)=>b-a).slice(0,5);return{rank:5,name:'Flush',tb:fv};}
+  if(st) return{rank:4,name:'Sequência',tb:st};
+  if(grps[0][1]===3){const t=+grps[0][0],ks=vals.filter(v=>v!==t).slice(0,2);return{rank:3,name:'Trinca',tb:[t,t,t,...ks]};}
+  if(grps[0][1]===2&&grps[1]&&grps[1][1]===2){const p1=Math.max(+grps[0][0],+grps[1][0]),p2=Math.min(+grps[0][0],+grps[1][0]),k=vals.find(v=>v!==p1&&v!==p2);return{rank:2,name:'Dois Pares',tb:[p1,p1,p2,p2,k]};}
+  if(grps[0][1]===2){const p=+grps[0][0],ks=vals.filter(v=>v!==p).slice(0,3);return{rank:1,name:'Um Par',tb:[p,p,...ks]};}
+  return{rank:0,name:'Carta Alta',tb:vals.slice(0,5)};
+}
+
+function cmpHands(a,b){
+  if(a.rank!==b.rank) return b.rank-a.rank;
+  for(let i=0;i<a.tb.length;i++) if(a.tb[i]!==b.tb[i]) return b.tb[i]-a.tb[i];
+  return 0;
+}
+
+function calcWinner(){
+  const valid=players.filter(p=>p.cards.length===2);
+  if(valid.length<2){alert('Pelo menos 2 jogadores com 2 cartas cada.');return;}
+  const results=valid.map(p=>({player:p,hand:handRank([...p.cards,...community])})).sort((a,b)=>cmpHands(a.hand,b.hand));
+  const best=results[0].hand;
+  const winners=results.filter(r=>cmpHands(r.hand,best)===0);
+  const isTie=winners.length>1;
+  document.getElementById('result-list').innerHTML=results.map(r=>{
+    const isW=winners.includes(r);
+    const cls=isTie&&isW?'tie-block':isW?'winner':'loser';
+    const tag=isTie&&isW?`<span class="result-tag tag-tie">Empate</span><br>`:isW?`<span class="result-tag tag-win">Vencedor</span><br>`:'';
+    const pCards=r.player.cards.map(c=>`<span class="mini-card ${rCls(c.s)}">${c.r}${c.s}</span>`).join('');
+    const cCards=community.map(c=>`<span class="mini-card comm ${rCls(c.s)}">${c.r}${c.s}</span>`).join('');
+    return`<div class="result-block ${cls}">${tag}<div class="result-pname">${r.player.name||'Jogador'}</div><div class="result-hand-name">${r.hand.name}</div><div class="mini-cards">${pCards}${cCards}</div></div>`;
+  }).join('');
+  showPanel('result');
+}
+
+function showPanel(name){
+  ['community','players','result'].forEach(p=>document.getElementById('panel-'+p).style.display=p===name?'flex':'none');
+  setPhase(name==='community'?0:name==='players'?1:2);
+}
+
+document.getElementById('btn-next-players').addEventListener('click',()=>{
+  if(players.length===0){players.push({name:'Jogador 1',cards:[]},{name:'Jogador 2',cards:[]});selPlayer=0;}
+  showPanel('players'); renderPlayers(); buildDeck('deck2-container','tapPlayer');
+});
+document.getElementById('btn-clear-comm').addEventListener('click',()=>{
+  community.forEach(c=>usedCards.delete(c.id)); community=[];
+  renderCommunity(); refreshUsed('deck-container');
+});
+document.getElementById('btn-add-player').addEventListener('click',()=>{
+  players.push({name:'Jogador '+(players.length+1),cards:[]}); selPlayer=players.length-1; renderPlayers();
+});
+document.getElementById('btn-calc').addEventListener('click',calcWinner);
+document.getElementById('btn-back1').addEventListener('click',()=>showPanel('community'));
+document.getElementById('btn-back2').addEventListener('click',()=>showPanel('players'));
+document.getElementById('btn-new-round').addEventListener('click',()=>{
+  community=[];players=[];selPlayer=-1;usedCards=new Set();
+  renderCommunity(); refreshUsed('deck-container'); showPanel('community');
+});
+
+renderCommunity();
+buildDeck('deck-container','tapCommunity');
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
